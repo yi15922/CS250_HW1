@@ -6,7 +6,7 @@ int recurse(int input){
 		return 2;
 	}
 	int result = 3*(input-1)+recurse(input-1)+1;
-	printf("%d\n", result); 
+	//printf("%d\n", result); 
 
 	return result;
 }
