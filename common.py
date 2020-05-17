@@ -8,7 +8,30 @@ import re
 import json
 import shutil
 import subprocess
-from itertools import zip_longest
+try: 
+    from itertools import zip_longest
+except ImportError: # need to support ancient python 2.4 on login.oit.duke.edu by backporting this function
+    from itertools import repeat
+    def zip_longest(*args, **kwargs):
+        fillvalue=kwargs.get('fillvalue',None)
+        # zip_longest('ABCD', 'xy', fillvalue='-') --> Ax By C- D-
+        iterators = [iter(it) for it in args]
+        num_active = len(iterators)
+        if not num_active:
+            return
+        while True:
+            values = []
+            for i, it in enumerate(iterators):
+                try:
+                    value = next(it)
+                except StopIteration:
+                    num_active -= 1
+                    if not num_active:
+                        return
+                    iterators[i] = repeat(fillvalue)
+                    value = fillvalue
+                values.append(value)
+            yield tuple(values)
 import xml.etree.ElementTree as ET
 
 # Set test case timeout to 10 seconds
@@ -26,6 +49,30 @@ class TextColors:
     GREEN = "\033[0;32m"
     RED = "\033[0;31m"
     END = "\033[0m"
+
+try:
+    from subprocess import DEVNULL
+except ImportError: #old python 2.4 on login.oit.duke.edu doesnt have this. i make a new one
+    DEVNULL = open("/dev/null","w")
+    
+# wrapper for subprocess.check_call to include timeout if and only if python version is 3.x (ugly hack to support python 2 and 3 at same time)
+def my_check_call(args, stdin=None, stdout=None, stderr=None, shell=False, timeout=None):
+    if sys.version_info[0]==2: # python 2.x has no timeout support
+        return subprocess.check_call(args,
+                                     stdin=stdin,
+                                     stdout=stdout,
+                                     stderr=stdout,
+                                     shell=shell)
+    elif sys.version_info[0]==3:
+        return subprocess.check_call(args,
+                                     stdin=stdin,
+                                     stdout=stdout,
+                                     stderr=stdout,
+                                     timeout=timeout,
+                                     shell=shell)
+    else:
+        raise Exception("Unrecognized python version")
+
 
 class TestOutput:
     """
@@ -79,17 +126,16 @@ class TestOutput:
         if self.exit_status_non_zero:
             penalty = "no penalty applied"
             if self.exit_status_non_zero_penalty < 1:
-                penalty = "{}% penalty applied".format((1 - self.exit_status_non_zero_penalty) * 100)
-            output += "Exit status non zero! ({})\n".format(penalty)
+                penalty = "%d%% penalty applied" % ((1 - self.exit_status_non_zero_penalty) * 100)
+            output += "Exit status non zero! (%s)\n" % (penalty)
         if self.valgrind_memory_error and self.is_valgrind:
             if self.valgrind_memory_error_penalty < 1:
-                penalty = "{}% penalty applied".format((1 - self.valgrind_memory_error_penalty) * 100)
-            output += "Valgrind memory error detected! ({})\n".format(penalty)
+                penalty = "%d%% penalty applied" % ((1 - self.valgrind_memory_error_penalty) * 100)
+            output += "Valgrind memory error detected! (%s)\n" % (penalty)
 
         if self.disallowed_components:
-            penalty = "{}% penalty applied".format((1 - self.disallowed_components_penalty) * 100)
-            output += "The following disallowed components were detected: {} ({})\n".format(self.disallowed_components,
-                                                                                            penalty)
+            penalty = "%d%% penalty applied" % ((1 - self.disallowed_components_penalty) * 100)
+            output += "The following disallowed components were detected: %s (%s)\n"% (self.disallowed_components, penalty)
 
         if self.is_segfault:
             output += "Segfault detected!\n"
@@ -163,7 +209,7 @@ class Grader():
         elif self.test_suite in self.test_suite_names:
             test_outputs, total_score = self.run_test_suite(self.test_suite, test_outputs, total_score)
         else:
-            raise Exception("Invalid test provided: {}".format(self.test_suite))
+            raise Exception("Invalid test provided: %s" (self.test_suite))
 
         return test_outputs, total_score
 
@@ -171,14 +217,14 @@ class Grader():
         """
         Run a test suite.
         """
-        print("Running tests for {}...".format(test_suite_name))
+        print("Running tests for %s..." % (test_suite_name))
 
         for test_num, test_case in enumerate(self.test_suites[test_suite_name]):
             test_output, points = self.run_test_case(test_suite_name, test_case, test_num)
             test_outputs.append(test_output)
             total_score += points
 
-        print("Done running tests for {}.\n".format(test_suite_name))
+        print("Done running tests for %s.\n" % (test_suite_name))
 
         return test_outputs, total_score
 
@@ -313,7 +359,7 @@ class Grader():
             try:
                 self.spim_clean(actual_output_filename)
             except Exception as e:
-                print("Exception when running spim_clean: {}".format(e))
+                print("Exception when running spim_clean: %s" % e)
 
         if diff_type == "normal":
             is_pass = self.normal_diff(expected_output_filename, actual_output_filename, diff_filename)
@@ -339,14 +385,14 @@ class Grader():
                 diff = diff_file.read()
             except Exception as e:
                 diff = "There was a problem reading the diff file. This is likely due to a problem with your submission causing a non-ASCII character to be written to the diff file."
-                print("Exception when running diff: {}".format(e))
+                print("Exception when running diff: %s" % (e))
 
         with open(actual_output_filename, "r") as actual_file:
             try:
                 actual = actual_file.read()
             except Exception as e:
                 actual = "There was a problem reading the actual file. This is likely due to a problem with your submission causing a non-ASCII character to be written to the actual file."
-                print("Exception when running actual: {}".format(e))
+                print("Exception when running actual: %s" % (e))
 
         return is_pass, exit_status_non_zero, memory_error, diff, actual, is_segfault
 
@@ -420,21 +466,22 @@ class Grader():
         """
         try:
             if output_file is not None:
-                return subprocess.check_call([command] + arguments,
+                return my_check_call([command] + arguments,
                                              stdout=output_file,
                                              stderr=output_file,
                                              stdin=input_file,
                                              timeout=TEST_CASE_TIMEOUT,
                                              shell=False)
-            return subprocess.check_call([command] + arguments,
-                                         stdout=subprocess.DEVNULL,
-                                         stderr=output_file,
+            return my_check_call([command] + arguments,
+                                         stdout=DEVNULL,
+                                         stderr=DEVNULL,
                                          stdin=input_file,
                                          timeout=TEST_CASE_TIMEOUT,
                                          shell=False)
         except subprocess.CalledProcessError as exception:
             return exception.returncode
         except Exception as exception:
+            print("run_process: %s" % exception)
             return -1
 
     # Remove spim headers and colon-terminated prompts
