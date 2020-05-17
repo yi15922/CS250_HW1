@@ -4,7 +4,9 @@
 int main(int argc, char* argv[]){
 
 	int input = atoi(argv[1]);
- 
-	printf("The argument is %d\n", input);
+
+	for (int i = 0; i < input; i++){ 
+		printf("%d\n", 7*(i+1));
+	}
 	return EXIT_SUCCESS;
 }
