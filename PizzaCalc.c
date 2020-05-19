@@ -22,7 +22,7 @@ typedef struct Pizza {
 
 /*
  Swaps the contents of 2 Pizza nodes (not the nodes themselves)
- Might have a more efficient way.
+ Might have a better way.
  */
 void swap(Pizza* i, Pizza* j){
     char* tempName = i->name;
@@ -75,10 +75,7 @@ int main(int argc, char* argv[]){
     
     // Keep track of the start node
     Pizza* start = pizzaList;
-    
-    // Allocate an array of char pointers to store information read
-    //char** stringArray = (char**)malloc(sizeof(char*));
-    
+
     // counter cycles 0, 1, 2 to parse tokens
     int counter = 0;
     
@@ -99,7 +96,6 @@ int main(int argc, char* argv[]){
             // If no pizza, panic and yeet out everything
             fclose(theFile);
             free(pizzaList);
-            //free(stringArray);
             return EXIT_SUCCESS;
         }
         
@@ -113,9 +109,7 @@ int main(int argc, char* argv[]){
         char* copiedString = (char*)malloc(sizeof(char)*MAX);
         strcpy(copiedString, str);
         strtok(copiedString, "\n"); // Remove any newline character at the end
-        
-        //stringArray[index] = copiedString; // Store to stringArray
-        
+                
         // 1st token is pizza name, set the name field of Pizza
         if (counter == 0){
             pizzaList->name = copiedString;
@@ -124,6 +118,8 @@ int main(int argc, char* argv[]){
         // 2nd token is diameter, temporarily putting it in pizzaPerDollar
         if (counter == 1){
             pizzaList->pizzaPerDollar = atof(copiedString);
+            
+            // release memory allocated to copiedString
             free(copiedString);
         }
         
@@ -134,12 +130,16 @@ int main(int argc, char* argv[]){
             // If cost is 0, no pizza, there is no free lunch!
             if (!atof(copiedString)){
                 pizzaList->pizzaPerDollar = 0;
+                
+                // release memory allocated to copiedString
                 free(copiedString);
             } else {
                 float cost = atof(copiedString);
                 float PPD = pow(pizzaList->pizzaPerDollar/2, 2)*PI/cost;
-                free(copiedString);
                 pizzaList->pizzaPerDollar = PPD;
+
+                // release memory allocated to copiedString
+                free(copiedString);
 
             }
 
@@ -158,29 +158,23 @@ int main(int argc, char* argv[]){
         
         // Advance the index
         index += 1;
-        
-        // Grow stringArray by 1 char pointer
-        //stringArray = (char**)realloc(stringArray, (index+1)*sizeof(char*));
-        
+
     }
     
     // Sort the list and print the results
     listSort(start);
     
-    // Release memory allocated to Pizza list
+    // Release memory allocated to Pizza list and the strings stored inside
     while (start->next != NULL){
         Pizza* prev = start;
         free(start->name);
-        //free(start->pizzaPerDollar);
         start = start->next;
         free(prev);
     }
     
     
     // Release everything else
-    
     fclose(theFile);
-    //free(stringArray);
     free(pizzaList);
 
     return EXIT_SUCCESS;
