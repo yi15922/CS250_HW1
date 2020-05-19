@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #define MAX 64
 #define PI 3.14159265358979323846
+
 
 typedef struct Pizza {
     char* name;
@@ -11,23 +13,29 @@ typedef struct Pizza {
     Pizza* next;
 } Pizza;
 
+void swap(Pizza* i, Pizza* j){
+    char* tempName = i->name;
+    float tempPPD = i->pizzaPerDollar;
+    
+    i->name = j->name;
+    i->pizzaPerDollar = j->pizzaPerDollar;
+    
+    j->name = tempName;
+    j->pizzaPerDollar = tempPPD;
+}
+
 
 void listSort(Pizza* list){
     Pizza* i;
     Pizza* j;
     
     for (i = list; i->next != NULL; i = i->next){
-        
         for (j = i->next; j->next != NULL; j = j->next){
-            if (i->pizzaPerDollar > j->pizzaPerDollar){
-                char* tempName = i->name;
-                float tempPPD = i->pizzaPerDollar;
-                
-                i->name = j->name;
-                i->pizzaPerDollar = j->pizzaPerDollar;
-                
-                j->name = tempName;
-                j->pizzaPerDollar = tempPPD;
+            if (i->pizzaPerDollar == j->pizzaPerDollar && strcmp(j->name, i->name) < 0){
+                swap(i, j);
+            } else
+            if (i->pizzaPerDollar < j->pizzaPerDollar){
+                swap(i, j);
             }
         }
         printf("%s %f\n", i->name, i->pizzaPerDollar);
@@ -41,6 +49,8 @@ int main(int argc, char* argv[]){
     
     char string[MAX];
     char done[] = "DONE\n";
+    
+    
     Pizza* pizzaList = (Pizza*) malloc(sizeof(Pizza));
     Pizza* start = pizzaList;
     
@@ -50,14 +60,14 @@ int main(int argc, char* argv[]){
     int index = 0;
     
     while (1){
-        char str[64];
+        char str[MAX];
         fgets(str, MAX, theFile);
         if (strcmp(str, done) == 0){
             pizzaList->next = NULL;
             break;
         }
         
-        char* copiedString = (char*)malloc(sizeof(char)*64);
+        char* copiedString = (char*)malloc(sizeof(char)*MAX);
         strcpy(copiedString, str);
         strtok(copiedString, "\n");
         
@@ -76,10 +86,10 @@ int main(int argc, char* argv[]){
         
         if (counter == 2){
             //float cost = atof(string);
-            if (!stringArray[index]){
+            if (!atof(stringArray[index])){
                 pizzaList->pizzaPerDollar = 0;
             } else {
-                pizzaList->pizzaPerDollar = (pizzaList->pizzaPerDollar/2*PI*PI)/atof(stringArray[index]);
+                pizzaList->pizzaPerDollar = pow(pizzaList->pizzaPerDollar/2, 2)*PI/atof(stringArray[index]);
             }
             //printf("\t%f\n", cost);
             //printf("\t%f\n", PPD);
