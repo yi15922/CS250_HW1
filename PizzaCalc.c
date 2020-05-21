@@ -25,7 +25,6 @@ Pizza* create(FILE* theFile){
     char str[MAX] = "empty";
     char done[] = "DONE\n"; // Done has a newline after it... wtf?
 
-    char str[MAX] = "empty";
     Pizza* aPizza = (struct Pizza*)malloc(sizeof(Pizza));
 
     for (int i = 0; i < 3; i++){
